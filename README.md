@@ -78,16 +78,5 @@ python chess.py
 
 This will create a `game_tree.png` file representing the sequence of moves.
 
-## Future Improvements
 
-* Implement castling and en passant.
-* Add check, checkmate, and stalemate detection.
-* Implement a basic AI for single-player mode.
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-Special thanks to the Python community for the `anytree` library and to our team members for their collaboration on this project.
