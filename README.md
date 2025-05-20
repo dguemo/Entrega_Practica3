@@ -43,7 +43,7 @@ Graphviz is required to visualize the game tree. If you don't have it installed,
 ```bash
 python testchess.py
 ```
-*we reccomend to use VsCode
+*we recommend to use VsCode
 
 3. Follow the on-screen prompts to make moves. Use standard algebraic notation (e.g., `e2 e4`) to specify moves.
 4. To exit the game, type `exit`.
