@@ -48,6 +48,7 @@ class Rook(Piece):
     def __init__(self, color):
         super().__init__(color)
         self.name = "Rook"
+        self.has_moved = False  # Track if the rook has moved
 
     def can_move(self, board, start, end):
         start_row, start_col = start
@@ -138,12 +139,34 @@ class King(Piece):
     def __init__(self, color):
         super().__init__(color)
         self.name = "King"
+        self.has_moved = False  # Track if the king has moved
 
     def can_move(self, board, start, end):
         start_row, start_col = start
         end_row, end_col = end
         row_diff = abs(end_row - start_row)
         col_diff = abs(end_col - start_col)
+
+        # Castling logic
+        if (row_diff == 0 and col_diff == 2) and not self.has_moved:
+            # Kingside castling
+            if end_col == start_col + 2:
+                rook = board[start_row][start_col + 3]
+                if isinstance(rook, Rook) and not rook.has_moved:
+                    # Check empty squares between king and rook
+                    if board[start_row][start_col + 1] is None and board[start_row][start_col + 2] is None:
+                        return True
+            # Queenside castling
+            elif end_col == start_col - 2:
+                rook = board[start_row][start_col - 4]
+                if isinstance(rook, Rook) and not rook.has_moved:
+                    # Check empty squares between king and rook
+                    if (board[start_row][start_col - 1] is None and
+                        board[start_row][start_col - 2] is None and
+                        board[start_row][start_col - 3] is None):
+                        return True
+
+        # Normal king move
         if max(row_diff, col_diff) == 1:
             target_piece = board[end_row][end_col]
             if target_piece is None or target_piece.color != self.color:
@@ -227,8 +250,28 @@ class ChessGame:
         er, ec = end
         piece = self.board[sr][sc]
         captured = self.board[er][ec]
+
+        # Handle castling
+        if isinstance(piece, King) and abs(ec - sc) == 2:
+            if ec > sc:  # Kingside castling
+                rook = self.board[sr][sc + 3]
+                if rook is None or rook.has_moved:
+                    return False, "Castling not allowed: rook has moved or missing"
+                self.board[sr][sc + 1] = rook
+                self.board[sr][sc + 3] = None
+                rook.has_moved = True
+            else:  # Queenside castling
+                rook = self.board[sr][sc - 4]
+                if rook is None or rook.has_moved:
+                    return False, "Castling not allowed: rook has moved or missing"
+                self.board[sr][sc - 1] = rook
+                self.board[sr][sc - 4] = None
+                rook.has_moved = True
+
         self.board[er][ec] = piece
         self.board[sr][sc] = None
+        piece.has_moved = True  # Mark piece as moved
+
         move_record = f"{piece.name} from {start_str} to {end_str}"
         if captured:
             move_record += f" capturing {captured.name}"
@@ -242,19 +285,16 @@ class ChessGame:
 
     def generate_game_tree(self):
         root = Node("Partida", color="gold")
-        current_nodes = [root]
-        for i in range(0, len(self.move_history), 2):
-            new_nodes = []
-            for node in current_nodes:
-                if i < len(self.move_history):
-                    white_move = Node(self.move_history[i], parent=node, color="white")
-                    new_nodes.append(white_move)
-                if i+1 < len(self.move_history):
-                    black_move = Node(self.move_history[i+1], parent=node, color="gray")
-                    new_nodes.append(black_move)
-            current_nodes = new_nodes
+        current_node = root  # Solo necesitamos un nodo actual para agregar movimientos
+
+        for i in range(len(self.move_history)):
+            # Crear un nuevo nodo para cada movimiento realizado
+            move_node = Node(self.move_history[i], parent=current_node, color="white" if i % 2 == 0 else "gray")
+            current_node = move_node  # Actualizar el nodo actual al nuevo nodo creado
+
         def node_style(n):
             return f"fillcolor={n.color}, style=filled" if hasattr(n, 'color') else ""
+
         DotExporter(root, nodenamefunc=lambda n: n.name, nodeattrfunc=node_style).to_dotfile("game_tree.dot")
         os.system("dot -Tpng game_tree.dot -o game_tree.png")
         print("Árbol de partida generado en game_tree.png")
@@ -263,13 +303,34 @@ class ChessGame:
 def main():
     game = ChessGame()
     print("Welcome to Python Chess Game!")
-    print("Enter moves in format: e2 e4")
+    print("Enter moves in format: e2 e4 or O-O / O-O-O for castling")
     while True:
         game.print_board()
         print(f"{game.current_turn.capitalize()}'s turn.")
         user_input = input("Your move (start end) or 'exit': ").strip()
+
         if user_input.lower() == 'exit':
             break
+
+        # Handling castling commands O-O and O-O-O
+        if user_input.upper() == 'O-O':
+            # Kingside castling
+            row = 0 if game.current_turn == 'white' else 7
+            start = 'e' + str(row + 1)
+            end = 'g' + str(row + 1)
+            success, msg = game.move_piece(start, end)
+            print(msg)
+            continue
+        elif user_input.upper() == 'O-O-O':
+            # Queenside castling
+            row = 0 if game.current_turn == 'white' else 7
+            start = 'e' + str(row + 1)
+            end = 'c' + str(row + 1)
+            success, msg = game.move_piece(start, end)
+            print(msg)
+            continue
+
+        # Normal move input
         if len(user_input.split()) != 2:
             print("Invalid input.")
             continue
@@ -282,4 +343,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
